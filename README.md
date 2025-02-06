@@ -44,7 +44,7 @@ This is a simple IT equipment management system that allows you to track IT equi
 - username: admin
 - password: administrator
 
-To change the password, go to the database and set the password to null.
+To change the password in extreme cases, go to the database and set the password to null.
 
 ## todo
 
