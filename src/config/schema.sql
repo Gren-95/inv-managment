@@ -218,7 +218,7 @@ CROSS JOIN permissions p;
 
 -- Create admin user with password 'admin'
 INSERT INTO users (name, email, password, ppid, active) VALUES 
-('Admin', 'admin@company.com', '$2y$10$Jw3xN0ZOqRCJwqX9A2jkpuHhR0ChJa1B5eUjr.6ZzKGqwZyEJEHNu', 'admin', TRUE);
+('Admin', 'admin@company.com', '$2y$10$jg.ciCkbFtLggQetN5tYy.dalziJrTvgVi2llL.rW6uaxP2SoIip6', 'admin', TRUE);
 
 -- Grant all permissions to admin user
 INSERT INTO user_permissions (user_id, permission_id)
