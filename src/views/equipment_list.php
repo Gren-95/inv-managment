@@ -35,31 +35,45 @@
             min-width: 120px;
             max-width: 200px;
         }
+        .form-select:focus {
+            border-color: #0d6efd;
+            box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+        }
+        .btn-outline-secondary:focus {
+            box-shadow: 0 0 0 0.25rem rgba(108, 117, 125, 0.25);
+        }
     </style>
 </head>
 <body>
     <div class="container mt-4">
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h1>IT Equipment List</h1>
-            <div>
-                <a href="?action=locations" class="btn btn-secondary">Manage Locations</a>
-                <a href="?action=users" class="btn btn-secondary">Manage Users</a>
-                <a href="?action=models_and_types" class="btn btn-secondary">Manage Models & Types</a>
-                <a href="?action=shared_accounts" class="btn btn-secondary">Shared Accounts</a>
-                <a href="?action=equipment_log" class="btn btn-secondary">Status Log</a>
-                <a href="?action=create" class="btn btn-primary">Add New Equipment</a>
+            <div class="d-flex align-items-center gap-3">
+                <select class="form-select" style="width: auto;" onchange="handlePageChange(this.value)">
+                    <option value="?action=list">Equipment List</option>
+                    <option value="?action=locations">Manage Locations</option>
+                    <option value="?action=users">Manage Users</option>
+                    <option value="?action=models_and_types">Manage Models & Types</option>
+                    <option value="?action=shared_accounts">Shared Accounts</option>
+                    <option value="?action=equipment_log">Status Log</option>
+                    <option value="phpmyadmin">Database Admin</option>
+                </select>
             </div>
         </div>
 
         <table class="table table-striped">
             <thead>
                 <tr>
-                    <th class="sortable" data-sort="id">ID</th>
+                    <th>
+                        <div class="sortable" data-sort="id">ID</div>
+                        <div class="mt-2">
+                            <button class="btn btn-outline-secondary btn-sm" onclick="resetFilters()">Reset Filters</button>
+                        </div>
+                    </th>
                     <th>
                         <div class="sortable" data-sort="model">Model</div>
                         <div class="mt-2">
-                            <input type="text" class="form-control form-control-sm filter-input" 
-                                   data-column="model" placeholder="Filter model...">
+                            <input type="text" class="form-control form-control-sm filter-input" data-column="model" placeholder="Filter model...">
                         </div>
                     </th>
                     <th>
@@ -98,11 +112,14 @@
                     <th>
                         Location
                         <div class="mt-2">
-                            <input type="text" class="form-control form-control-sm filter-input" 
-                                   data-column="location" placeholder="Filter location...">
+                            <input type="text" class="form-control form-control-sm filter-input" data-column="location" placeholder="Filter location..."></div>
+                    </th>
+                    <th>
+                        Actions
+                        <div class="mt-2">
+                            <a href="?action=create" class="btn btn-primary btn-sm">Add Equipment</a>
                         </div>
                     </th>
-                    <th>Actions</th>
                 </tr>
             </thead>
             <tbody>
@@ -150,6 +167,23 @@
     </div>
 
     <script>
+        function handlePageChange(value) {
+            if (value === 'phpmyadmin') {
+                window.open('http://' + window.location.hostname + ':8081', '_blank');
+            } else {
+                window.location.href = value;
+            }
+        }
+
+        // Set the current page in the select
+        document.addEventListener('DOMContentLoaded', function() {
+            const pageSelect = document.querySelector('select');
+            const currentUrl = window.location.search || '?action=list';
+            if (currentUrl !== 'phpmyadmin') {
+                pageSelect.value = currentUrl;
+            }
+        });
+
         function handleAction(select, id) {
             if (!select.value) return;
             
@@ -173,6 +207,13 @@
                 input.addEventListener('input', filterTable);
             });
 
+            window.resetFilters = function() {
+                filterInputs.forEach(input => {
+                    input.value = '';
+                });
+                filterTable();
+            };
+
             function filterTable() {
                 const filters = {};
                 filterInputs.forEach(input => {
@@ -182,15 +223,16 @@
                 tableRows.forEach(row => {
                     let show = true;
                     const cells = {
-                        model: row.cells[1].textContent,
-                        serial: row.cells[2].textContent,
-                        status: row.cells[3].textContent,
-                        assigned: row.cells[4].textContent,
-                        location: row.cells[5].textContent
+                        model: row.cells[1].textContent.toLowerCase(),
+                        serial: row.cells[2].textContent.toLowerCase(),
+                        age: row.cells[3].textContent.toLowerCase(),
+                        status: row.cells[4].textContent.toLowerCase(),
+                        assigned: row.cells[5].textContent.toLowerCase(),
+                        location: row.cells[6].textContent.toLowerCase()
                     };
 
                     Object.keys(filters).forEach(key => {
-                        if (filters[key] && !cells[key].toLowerCase().includes(filters[key])) {
+                        if (filters[key] && !cells[key].includes(filters[key])) {
                             show = false;
                         }
                     });
