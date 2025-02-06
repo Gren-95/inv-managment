@@ -15,6 +15,7 @@ DROP TABLE IF EXISTS branches;
 DROP TABLE IF EXISTS countries;
 DROP TABLE IF EXISTS equipment_types;
 DROP TABLE IF EXISTS shared_accounts;
+DROP TABLE IF EXISTS equipment_audits;
 
 SET FOREIGN_KEY_CHECKS = 1;
 
@@ -88,7 +89,10 @@ CREATE TABLE equipment (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (model_id) REFERENCES equipment_models(id),
     FOREIGN KEY (assigned_to_id) REFERENCES users(id),
-    FOREIGN KEY (area_id) REFERENCES areas(id)
+    FOREIGN KEY (area_id) REFERENCES areas(id),
+    last_audit_date TIMESTAMP NULL,
+    last_audited_by_id INT,
+    FOREIGN KEY (last_audited_by_id) REFERENCES users(id)
 );
 
 CREATE TABLE write_offs (
@@ -119,6 +123,31 @@ CREATE TABLE shared_accounts (
     passcode VARCHAR(255) NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+CREATE TABLE equipment_audits (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    equipment_id INT NOT NULL,
+    serial_number VARCHAR(100) NOT NULL,
+    current_status VARCHAR(50) NOT NULL,
+    new_status VARCHAR(50) NOT NULL,
+    current_location_id INT,
+    new_location_id INT,
+    current_assigned_to_id INT,
+    new_assigned_to_id INT,
+    audited_by_user_id INT,
+    audit_notes TEXT,
+    audit_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    status ENUM('pending', 'approved', 'rejected') DEFAULT 'pending',
+    approved_by_user_id INT,
+    approval_date TIMESTAMP NULL,
+    FOREIGN KEY (equipment_id) REFERENCES equipment(id),
+    FOREIGN KEY (current_location_id) REFERENCES areas(id),
+    FOREIGN KEY (new_location_id) REFERENCES areas(id),
+    FOREIGN KEY (current_assigned_to_id) REFERENCES users(id),
+    FOREIGN KEY (new_assigned_to_id) REFERENCES users(id),
+    FOREIGN KEY (audited_by_user_id) REFERENCES users(id),
+    FOREIGN KEY (approved_by_user_id) REFERENCES users(id)
 );
 
 -- Sample Equipment Types

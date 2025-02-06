@@ -272,4 +272,187 @@ class Equipment {
         $stmt->execute();
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
+
+    public function getBySerial($serial) {
+        $sql = "
+            SELECT e.*, 
+                   m.name as model_name, 
+                   t.name as type_name,
+                   u.name as user_name,
+                   a.id as area_id,
+                   a.name as area_name,
+                   d.id as department_id,
+                   d.name as department_name,
+                   b.id as branch_id,
+                   b.name as branch_name,
+                   c.id as country_id,
+                   c.name as country_name,
+                   CONCAT(c.name, ' - ', b.name, ' - ', d.name, 
+                          CASE WHEN a.name IS NOT NULL THEN CONCAT(' (', a.name, ')') ELSE '' END) as location
+            FROM equipment e
+            JOIN equipment_models m ON e.model_id = m.id
+            JOIN equipment_types t ON m.type_id = t.id
+            LEFT JOIN users u ON e.assigned_to_id = u.id
+            LEFT JOIN areas a ON e.area_id = a.id
+            LEFT JOIN departments d ON a.department_id = d.id
+            LEFT JOIN branches b ON d.branch_id = b.id
+            LEFT JOIN countries c ON b.country_id = c.id
+            WHERE e.serial_number = ?";
+            
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->execute([$serial]);
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+    }
+
+    public function submitAudit($data) {
+        $this->pdo->beginTransaction();
+        try {
+            // Insert audit record
+            $sql = "INSERT INTO equipment_audits (
+                equipment_id,
+                serial_number,
+                current_status,
+                new_status,
+                current_location_id,
+                new_location_id,
+                current_assigned_to_id,
+                new_assigned_to_id,
+                audit_notes,
+                audited_by_user_id
+            ) VALUES (
+                :equipment_id,
+                :serial_number,
+                :current_status,
+                :new_status,
+                :current_location_id,
+                :new_location_id,
+                :current_assigned_to_id,
+                :new_assigned_to_id,
+                :audit_notes,
+                :audited_by_user_id
+            )";
+
+            $stmt = $this->pdo->prepare($sql);
+            $stmt->execute([
+                'equipment_id' => $data['equipment_id'],
+                'serial_number' => $data['serial_number'],
+                'current_status' => $data['current_status'],
+                'new_status' => $data['new_status'],
+                'current_location_id' => $data['current_location_id'],
+                'new_location_id' => $data['new_location_id'],
+                'current_assigned_to_id' => $data['current_assigned_to_id'],
+                'new_assigned_to_id' => $data['new_assigned_to_id'],
+                'audit_notes' => $data['audit_notes'],
+                'audited_by_user_id' => 1 // TODO: Get from session
+            ]);
+
+            $this->pdo->commit();
+            return true;
+        } catch (Exception $e) {
+            $this->pdo->rollBack();
+            throw $e;
+        }
+    }
+
+    public function getAudits($fromDate, $toDate) {
+        $sql = "SELECT a.*, 
+                e.model_id,
+                m.name as model_name,
+                t.name as type_name,
+                u1.name as audited_by_name,
+                u2.name as approved_by_name,
+                u3.name as current_assigned_to_name,
+                u4.name as new_assigned_to_name,
+                CASE 
+                    WHEN a1.id IS NOT NULL THEN 
+                        CONCAT(c1.name, ' - ', b1.name, ' - ', d1.name, ' - ', a1.name)
+                    ELSE NULL 
+                END as current_location,
+                CASE 
+                    WHEN a2.id IS NOT NULL THEN 
+                        CONCAT(c2.name, ' - ', b2.name, ' - ', d2.name, ' - ', a2.name)
+                    ELSE NULL 
+                END as new_location
+                FROM equipment_audits a
+                JOIN equipment e ON a.equipment_id = e.id
+                JOIN equipment_models m ON e.model_id = m.id
+                JOIN equipment_types t ON m.type_id = t.id
+                LEFT JOIN users u1 ON a.audited_by_user_id = u1.id
+                LEFT JOIN users u2 ON a.approved_by_user_id = u2.id
+                LEFT JOIN users u3 ON a.current_assigned_to_id = u3.id
+                LEFT JOIN users u4 ON a.new_assigned_to_id = u4.id
+                LEFT JOIN areas a1 ON a.current_location_id = a1.id
+                LEFT JOIN departments d1 ON a1.department_id = d1.id
+                LEFT JOIN branches b1 ON d1.branch_id = b1.id
+                LEFT JOIN countries c1 ON b1.country_id = c1.id
+                LEFT JOIN areas a2 ON a.new_location_id = a2.id
+                LEFT JOIN departments d2 ON a2.department_id = d2.id
+                LEFT JOIN branches b2 ON d2.branch_id = b2.id
+                LEFT JOIN countries c2 ON b2.country_id = c2.id
+                WHERE DATE(a.audit_date) BETWEEN :from_date AND :to_date
+                ORDER BY a.audit_date DESC";
+        
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->execute([
+            'from_date' => $fromDate,
+            'to_date' => $toDate
+        ]);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    public function updateAudits($ids, $action) {
+        $this->pdo->beginTransaction();
+        try {
+            $status = $action === 'approve' ? 'approved' : 'rejected';
+            
+            // Update audit status
+            $sql = "UPDATE equipment_audits 
+                   SET status = :status,
+                       approved_by_user_id = :user_id,
+                       approval_date = CURRENT_TIMESTAMP
+                   WHERE id IN (" . implode(',', array_map('intval', $ids)) . ")";
+            
+            $stmt = $this->pdo->prepare($sql);
+            $stmt->execute([
+                'status' => $status,
+                'user_id' => 1 // TODO: Get from session
+            ]);
+
+            // If approved, update equipment
+            if ($action === 'approve') {
+                foreach ($ids as $id) {
+                    $audit = $this->getAuditById($id);
+                    
+                    $updateSql = "UPDATE equipment 
+                                SET status = :status,
+                                    area_id = :area_id,
+                                    assigned_to_id = :assigned_to_id,
+                                    last_audit_date = CURRENT_TIMESTAMP,
+                                    last_audited_by_id = :audited_by_id
+                                WHERE id = :id";
+                    
+                    $updateStmt = $this->pdo->prepare($updateSql);
+                    $updateStmt->execute([
+                        'status' => $audit['new_status'],
+                        'area_id' => $audit['new_location_id'],
+                        'assigned_to_id' => $audit['new_assigned_to_id'],
+                        'audited_by_id' => $audit['audited_by_user_id'],
+                        'id' => $audit['equipment_id']
+                    ]);
+                }
+            }
+
+            $this->pdo->commit();
+            return true;
+        } catch (Exception $e) {
+            $this->pdo->rollBack();
+            throw $e;
+        }
+    }
+
+    private function getAuditById($id) {
+        $stmt = $this->pdo->prepare("SELECT * FROM equipment_audits WHERE id = ?");
+        $stmt->execute([$id]);
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+    }
 } 

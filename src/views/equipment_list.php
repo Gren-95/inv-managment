@@ -56,7 +56,9 @@
                     <option value="?action=models_and_types">Manage Models & Types</option>
                     <option value="?action=shared_accounts">Shared Accounts</option>
                     <option value="?action=equipment_log">Status Log</option>
+                    <option value="?action=audit">Equipment Audit</option>
                     <option value="phpmyadmin">Database Admin</option>
+                    <option value="?action=about">About</option>
                 </select>
             </div>
         </div>

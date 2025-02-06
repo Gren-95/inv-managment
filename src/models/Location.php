@@ -180,4 +180,22 @@ class Location {
         $stmt->execute(['area_id' => $area_id]);
         return $stmt->fetch(PDO::FETCH_ASSOC);
     }
+
+    public function getAreaDetails($id) {
+        $stmt = $this->pdo->prepare("SELECT * FROM areas WHERE id = ?");
+        $stmt->execute([$id]);
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+    }
+
+    public function getDepartmentDetails($id) {
+        $stmt = $this->pdo->prepare("SELECT * FROM departments WHERE id = ?");
+        $stmt->execute([$id]);
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+    }
+
+    public function getBranchDetails($id) {
+        $stmt = $this->pdo->prepare("SELECT * FROM branches WHERE id = ?");
+        $stmt->execute([$id]);
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+    }
 } 

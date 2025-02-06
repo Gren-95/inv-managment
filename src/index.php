@@ -144,6 +144,33 @@ switch ($action) {
         }
         break;
 
+    case 'get_area_details':
+        if (isset($_GET['area_id'])) {
+            $area = $location->getAreaDetails($_GET['area_id']);
+            header('Content-Type: application/json');
+            echo json_encode($area);
+            exit;
+        }
+        break;
+
+    case 'get_department_details':
+        if (isset($_GET['department_id'])) {
+            $dept = $location->getDepartmentDetails($_GET['department_id']);
+            header('Content-Type: application/json');
+            echo json_encode($dept);
+            exit;
+        }
+        break;
+
+    case 'get_branch_details':
+        if (isset($_GET['branch_id'])) {
+            $branch = $location->getBranchDetails($_GET['branch_id']);
+            header('Content-Type: application/json');
+            echo json_encode($branch);
+            exit;
+        }
+        break;
+
     case 'locations':
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (isset($_POST['type'])) {
@@ -205,6 +232,33 @@ switch ($action) {
         include 'views/equipment_log.php';
         break;
 
+    case 'audit':
+        $users = $user->getAll();
+        $countries = $location->getAllCountries();
+        include 'views/equipment_audit.php';
+        break;
+
+    case 'audit_review':
+        $fromDate = $_GET['from_date'] ?? date('Y-m-d', strtotime('-7 days'));
+        $toDate = $_GET['to_date'] ?? date('Y-m-d');
+        $audits = $equipment->getAudits($fromDate, $toDate);
+        include 'views/audit_review.php';
+        break;
+
+    case 'update_audits':
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            $data = json_decode(file_get_contents('php://input'), true);
+            header('Content-Type: application/json');
+            try {
+                $equipment->updateAudits($data['ids'], $data['action']);
+                echo json_encode(['success' => true]);
+            } catch (Exception $e) {
+                echo json_encode(['error' => $e->getMessage()]);
+            }
+            exit;
+        }
+        break;
+
     case 'print_label':
         if (isset($_GET['id'])) {
             $item = $equipment->get($_GET['id']);
@@ -239,6 +293,36 @@ switch ($action) {
             header('Location: index.php?action=shared_accounts');
             exit;
         }
+        break;
+
+    case 'api_get_equipment':
+        if (isset($_GET['serial'])) {
+            header('Content-Type: application/json');
+            $data = $equipment->getBySerial($_GET['serial']);
+            if ($data) {
+                echo json_encode($data);
+            } else {
+                echo json_encode(['error' => 'Equipment not found']);
+            }
+            exit;
+        }
+        break;
+
+    case 'api_submit_audit':
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            header('Content-Type: application/json');
+            try {
+                $equipment->submitAudit($_POST);
+                echo json_encode(['success' => true]);
+            } catch (Exception $e) {
+                echo json_encode(['error' => 'Failed to submit audit']);
+            }
+            exit;
+        }
+        break;
+
+    case 'about':
+        include 'views/about.php';
         break;
 
     default:
