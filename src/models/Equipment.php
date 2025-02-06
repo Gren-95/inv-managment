@@ -12,12 +12,12 @@ class Equipment {
             model_id, buy_year, warranty_end,
             is_company_owned, status, assigned_to_id,
             serial_number,
-            area_id
+            area_id, teamviewer_id, cerf_id
         ) VALUES (
             :model_id, :buy_year, :warranty_end,
             :is_company_owned, :status, :assigned_to_id,
             :serial_number,
-            :area_id
+            :area_id, :teamviewer_id, :cerf_id
         )";
 
         $stmt = $this->pdo->prepare($sql);
@@ -31,6 +31,18 @@ class Equipment {
         if (empty($data['assigned_to_id'])) {
             $data['assigned_to_id'] = null;
         }
+        // Handle empty area_id
+        if (empty($data['area_id'])) {
+            $data['area_id'] = null;
+        }
+        // Handle empty TeamViewer ID
+        if (empty($data['teamviewer_id'])) {
+            $data['teamviewer_id'] = null;
+        }
+        // Handle empty CERF ID
+        if (empty($data['cerf_id'])) {
+            $data['cerf_id'] = null;
+        }
         // Create clean data array with only needed fields
         $params = [
             'model_id' => $data['model_id'],
@@ -40,7 +52,9 @@ class Equipment {
             'status' => $data['status'],
             'assigned_to_id' => $data['assigned_to_id'],
             'serial_number' => $data['serial_number'],
-            'area_id' => $data['area_id']
+            'area_id' => $data['area_id'],
+            'teamviewer_id' => $data['teamviewer_id'],
+            'cerf_id' => $data['cerf_id']
         ];
         return $stmt->execute($params);
     }
@@ -49,7 +63,7 @@ class Equipment {
         $oldData = $this->get($id);
         
         // If status is changing, record it
-        if (isset($data['status']) && $data['status'] !== $oldData['status']) {
+        if (!empty($data['status']) && $data['status'] !== $oldData['status']) {
             $this->updateStatus(
                 $id, 
                 $data['status'],
@@ -62,13 +76,15 @@ class Equipment {
 
         // Continue with regular update
         $sql = "UPDATE equipment SET 
-            status = :status,
-            assigned_to_id = :assigned_to_id,
-            country = :country,
-            region = :region,
-            department = :department,
-            area = :area,
+            model_id = :model_id,
+            buy_year = :buy_year,
+            warranty_end = :warranty_end,
             is_company_owned = :is_company_owned,
+            assigned_to_id = :assigned_to_id,
+            serial_number = :serial_number,
+            area_id = :area_id,
+            teamviewer_id = :teamviewer_id,
+            cerf_id = :cerf_id,
             updated_at = CURRENT_TIMESTAMP
             WHERE id = :id";
 
@@ -78,16 +94,30 @@ class Equipment {
         if (empty($data['assigned_to_id'])) {
             $data['assigned_to_id'] = null;
         }
+        // Handle empty area_id
+        if (empty($data['area_id'])) {
+            $data['area_id'] = null;
+        }
+        // Handle empty TeamViewer ID
+        if (empty($data['teamviewer_id'])) {
+            $data['teamviewer_id'] = null;
+        }
+        // Handle empty CERF ID
+        if (empty($data['cerf_id'])) {
+            $data['cerf_id'] = null;
+        }
         // Create clean data array with only needed fields
         $params = [
             'id' => $id,
-            'status' => $data['status'],
+            'model_id' => $data['model_id'],
+            'buy_year' => $data['buy_year'],
+            'warranty_end' => $data['warranty_end'],
+            'is_company_owned' => $data['is_company_owned'],
             'assigned_to_id' => $data['assigned_to_id'],
-            'country' => $data['country'] ?? null,
-            'region' => $data['region'] ?? null,
-            'department' => $data['department'] ?? null,
-            'area' => $data['area'] ?? null,
-            'is_company_owned' => $data['is_company_owned']
+            'serial_number' => $data['serial_number'],
+            'area_id' => $data['area_id'],
+            'teamviewer_id' => $data['teamviewer_id'],
+            'cerf_id' => $data['cerf_id']
         ];
         $stmt = $this->pdo->prepare($sql);
         return $stmt->execute($params);
@@ -180,15 +210,31 @@ class Equipment {
     }
 
     public function get($id) {
-        $sql = "SELECT e.*, m.name as model_name, m.type_id, m.release_year,
-                t.name as type_name, u.name as user_name 
+        $sql = "SELECT e.*, 
+                m.name as model_name,
+                t.name as type_name,
+                t.id as type_id,
+                c.id as country_id,
+                c.name as country_name,
+                b.id as branch_id,
+                b.name as branch_name,
+                d.id as department_id,
+                d.name as department_name,
+                a.id as area_id,
+                a.name as area_name,
+                u.name as assigned_to_name
                 FROM equipment e
-                JOIN equipment_models m ON e.model_id = m.id
-                JOIN equipment_types t ON m.type_id = t.id
+                LEFT JOIN equipment_models m ON e.model_id = m.id
+                LEFT JOIN equipment_types t ON m.type_id = t.id
                 LEFT JOIN users u ON e.assigned_to_id = u.id
-                WHERE e.id = :id";
+                LEFT JOIN areas a ON e.area_id = a.id
+                LEFT JOIN departments d ON a.department_id = d.id
+                LEFT JOIN branches b ON d.branch_id = b.id
+                LEFT JOIN countries c ON b.country_id = c.id
+                WHERE e.id = ?";
+        
         $stmt = $this->pdo->prepare($sql);
-        $stmt->execute(['id' => $id]);
+        $stmt->execute([$id]);
         return $stmt->fetch(PDO::FETCH_ASSOC);
     }
 
@@ -260,13 +306,27 @@ class Equipment {
                 m.name as model_name,
                 t.name as type_name,
                 u.name as changed_by_name,
-                u2.name as assigned_to_name
+                old_u.name as old_user_name,
+                new_u.name as new_user_name,
+                CONCAT(old_c.name, ' - ', old_b.name, ' - ', old_d.name, ' - ', old_a.name) as old_location_path,
+                CONCAT(new_c.name, ' - ', new_b.name, ' - ', new_d.name, ' - ', new_a.name) as new_location_path,
+                e.teamviewer_id,
+                e.cerf_id
                 FROM equipment_status_history h
                 JOIN equipment e ON h.equipment_id = e.id
                 JOIN equipment_models m ON e.model_id = m.id
                 JOIN equipment_types t ON m.type_id = t.id
                 LEFT JOIN users u ON h.changed_by_user_id = u.id
-                LEFT JOIN users u2 ON e.assigned_to_id = u2.id
+                LEFT JOIN users old_u ON h.old_user_id = old_u.id
+                LEFT JOIN users new_u ON h.new_user_id = new_u.id
+                LEFT JOIN areas old_a ON h.old_location_id = old_a.id
+                LEFT JOIN departments old_d ON old_a.department_id = old_d.id
+                LEFT JOIN branches old_b ON old_d.branch_id = old_b.id
+                LEFT JOIN countries old_c ON old_b.country_id = old_c.id
+                LEFT JOIN areas new_a ON h.new_location_id = new_a.id
+                LEFT JOIN departments new_d ON new_a.department_id = new_d.id
+                LEFT JOIN branches new_b ON new_d.branch_id = new_b.id
+                LEFT JOIN countries new_c ON new_b.country_id = new_c.id
                 ORDER BY h.changed_at DESC";
         $stmt = $this->pdo->prepare($sql);
         $stmt->execute();
@@ -279,6 +339,8 @@ class Equipment {
                    m.name as model_name, 
                    t.name as type_name,
                    u.name as user_name,
+                   e.teamviewer_id,
+                   e.cerf_id,
                    a.id as area_id,
                    a.name as area_name,
                    d.id as department_id,
@@ -318,7 +380,9 @@ class Equipment {
                 current_assigned_to_id,
                 new_assigned_to_id,
                 audit_notes,
-                audited_by_user_id
+                audited_by_user_id,
+                teamviewer_id,
+                cerf_id
             ) VALUES (
                 :equipment_id,
                 :serial_number,
@@ -329,7 +393,9 @@ class Equipment {
                 :current_assigned_to_id,
                 :new_assigned_to_id,
                 :audit_notes,
-                :audited_by_user_id
+                :audited_by_user_id,
+                :teamviewer_id,
+                :cerf_id
             )";
 
             $stmt = $this->pdo->prepare($sql);
@@ -343,7 +409,9 @@ class Equipment {
                 'current_assigned_to_id' => $data['current_assigned_to_id'],
                 'new_assigned_to_id' => $data['new_assigned_to_id'],
                 'audit_notes' => $data['audit_notes'],
-                'audited_by_user_id' => 1 // TODO: Get from session
+                'audited_by_user_id' => $_SESSION['user_id'],
+                'teamviewer_id' => empty($data['teamviewer_id']) ? null : $data['teamviewer_id'],
+                'cerf_id' => empty($data['cerf_id']) ? null : $data['cerf_id']
             ]);
 
             $this->pdo->commit();
@@ -363,6 +431,8 @@ class Equipment {
                 u2.name as approved_by_name,
                 u3.name as current_assigned_to_name,
                 u4.name as new_assigned_to_name,
+                e.teamviewer_id as current_teamviewer_id,
+                e.cerf_id as current_cerf_id,
                 CASE 
                     WHEN a1.id IS NOT NULL THEN 
                         CONCAT(c1.name, ' - ', b1.name, ' - ', d1.name, ' - ', a1.name)
@@ -415,7 +485,7 @@ class Equipment {
             $stmt = $this->pdo->prepare($sql);
             $stmt->execute([
                 'status' => $status,
-                'user_id' => 1 // TODO: Get from session
+                'user_id' => $_SESSION['user_id']
             ]);
 
             // If approved, update equipment
@@ -423,12 +493,77 @@ class Equipment {
                 foreach ($ids as $id) {
                     $audit = $this->getAuditById($id);
                     
+                    // Record changes in history
+                    if ($audit['new_status'] !== $audit['current_status'] ||
+                        $audit['new_location_id'] !== $audit['current_location_id'] ||
+                        $audit['new_assigned_to_id'] !== $audit['current_assigned_to_id'] ||
+                        $audit['teamviewer_id'] != $audit['current_teamviewer_id'] ||
+                        $audit['cerf_id'] != $audit['current_cerf_id']) {
+                        
+                        // Build comment based on changes
+                        $changes = [];
+                        if ($audit['new_status'] !== $audit['current_status']) {
+                            $changes[] = "Status changed from " . ($audit['current_status'] ?: 'none') . 
+                                       " to " . $audit['new_status'];
+                        }
+                        if ($audit['new_location_id'] !== $audit['current_location_id']) {
+                            // Get location details
+                            $oldLoc = $this->getLocationPath($audit['current_location_id']);
+                            $newLoc = $this->getLocationPath($audit['new_location_id']);
+                            $changes[] = "Location changed from " . ($oldLoc ?: 'Not Set') . 
+                                       " to " . ($newLoc ?: 'Not Set');
+                        }
+                        if ($audit['teamviewer_id'] != $audit['current_teamviewer_id']) {
+                            $changes[] = "TeamViewer ID changed from " . 
+                                       ($audit['current_teamviewer_id'] ?: 'Not Set') . 
+                                       " to " . ($audit['teamviewer_id'] ?: 'Not Set');
+                        }
+                        if ($audit['cerf_id'] != $audit['current_cerf_id']) {
+                            $changes[] = "CERF ID changed from " . 
+                                       ($audit['current_cerf_id'] ?: 'Not Set') . 
+                                       " to " . ($audit['cerf_id'] ?: 'Not Set');
+                        }
+                        
+                        $statusSql = "INSERT INTO equipment_status_history 
+                                    (equipment_id, old_status, new_status, 
+                                     old_location_id, new_location_id,
+                                     old_user_id, new_user_id,
+                                     old_teamviewer_id, new_teamviewer_id,
+                                     old_cerf_id, new_cerf_id,
+                                     changed_by_user_id, comment)
+                                    VALUES 
+                                    (:equipment_id, :old_status, :new_status,
+                                     :old_location_id, :new_location_id,
+                                     :old_user_id, :new_user_id,
+                                     :old_teamviewer_id, :new_teamviewer_id,
+                                     :old_cerf_id, :new_cerf_id,
+                                     :user_id, :comment)";
+                        $statusStmt = $this->pdo->prepare($statusSql);
+                        $statusStmt->execute([
+                            'equipment_id' => $audit['equipment_id'],
+                            'old_status' => $audit['current_status'] ?: null,
+                            'new_status' => $audit['new_status'],
+                            'old_location_id' => $audit['current_location_id'],
+                            'new_location_id' => $audit['new_location_id'],
+                            'old_user_id' => $audit['current_assigned_to_id'],
+                            'new_user_id' => $audit['new_assigned_to_id'],
+                            'old_teamviewer_id' => $audit['current_teamviewer_id'] ?: null,
+                            'new_teamviewer_id' => $audit['teamviewer_id'] ?: null,
+                            'old_cerf_id' => $audit['current_cerf_id'] ?: null,
+                            'new_cerf_id' => $audit['cerf_id'] ?: null,
+                            'user_id' => $_SESSION['user_id'],
+                            'comment' => "Changes during audit approval:\n" . implode("\n", $changes)
+                        ]);
+                    }
+
                     $updateSql = "UPDATE equipment 
                                 SET status = :status,
                                     area_id = :area_id,
                                     assigned_to_id = :assigned_to_id,
                                     last_audit_date = CURRENT_TIMESTAMP,
-                                    last_audited_by_id = :audited_by_id
+                                    last_audited_by_id = :audited_by_id,
+                                    teamviewer_id = :teamviewer_id,
+                                    cerf_id = :cerf_id
                                 WHERE id = :id";
                     
                     $updateStmt = $this->pdo->prepare($updateSql);
@@ -437,6 +572,8 @@ class Equipment {
                         'area_id' => $audit['new_location_id'],
                         'assigned_to_id' => $audit['new_assigned_to_id'],
                         'audited_by_id' => $audit['audited_by_user_id'],
+                        'teamviewer_id' => $audit['teamviewer_id'],
+                        'cerf_id' => $audit['cerf_id'],
                         'id' => $audit['equipment_id']
                     ]);
                 }
@@ -454,5 +591,31 @@ class Equipment {
         $stmt = $this->pdo->prepare("SELECT * FROM equipment_audits WHERE id = ?");
         $stmt->execute([$id]);
         return $stmt->fetch(PDO::FETCH_ASSOC);
+    }
+
+    private function getLocationPath($areaId) {
+        if (!$areaId) return null;
+        
+        $sql = "SELECT 
+                CONCAT(c.name, ' - ', b.name, ' - ', d.name, ' - ', a.name) as location_path
+                FROM areas a
+                JOIN departments d ON a.department_id = d.id
+                JOIN branches b ON d.branch_id = b.id
+                JOIN countries c ON b.country_id = c.id
+                WHERE a.id = ?";
+        
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->execute([$areaId]);
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $result ? $result['location_path'] : null;
+    }
+
+    private function getUserName($userId) {
+        if (!$userId) return null;
+        
+        $stmt = $this->pdo->prepare("SELECT name FROM users WHERE id = ?");
+        $stmt->execute([$userId]);
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $result ? $result['name'] : null;
     }
 } 

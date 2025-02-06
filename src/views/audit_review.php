@@ -1,8 +1,9 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Review Equipment Audits</title>
+    <title>Review Audits - ITEM</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="icon" type="image/png" href="assets/img/favicon.png">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         .changes-cell {
@@ -21,8 +22,8 @@
 <body>
     <div class="container mt-4">
         <div class="d-flex justify-content-between align-items-center mb-4">
-            <h1>Review Equipment Audits</h1>
-            <a href="index.php" class="btn btn-secondary">Back to List</a>
+            <h1>Review</h1>
+            <a href="index.php" class="btn btn-secondary">Back</a>
         </div>
 
         <!-- Date Range Filter -->
@@ -95,7 +96,7 @@
                                 <?php if ($audit['current_location_id'] !== $audit['new_location_id']): ?>
                                     <div class="mb-2">
                                         <strong>Location:</strong><br>
-                                        <span class="text-danger"><?= htmlspecialchars($audit['current_location'] ?? 'Not Set') ?></span><br>→<br>
+                                        <span class="text-danger"><?= htmlspecialchars($audit['current_location'] ?? 'Not Set') ?></span> →
                                         <span class="text-success"><?= htmlspecialchars($audit['new_location'] ?? 'Not Set') ?></span>
                                     </div>
                                 <?php endif; ?>
@@ -105,6 +106,30 @@
                                         <strong>Assigned To:</strong><br>
                                         <span class="text-danger"><?= htmlspecialchars($audit['current_assigned_to_name'] ?? 'Not Assigned') ?></span> →
                                         <span class="text-success"><?= htmlspecialchars($audit['new_assigned_to_name'] ?? 'Not Assigned') ?></span>
+                                    </div>
+                                <?php endif; ?>
+                                
+                                <?php if ($audit['teamviewer_id'] != $audit['current_teamviewer_id']): ?>
+                                    <div class="mb-2">
+                                        <strong>TeamViewer ID:</strong><br>
+                                        <span class="text-danger">
+                                            <?= $audit['current_teamviewer_id'] ? htmlspecialchars($audit['current_teamviewer_id']) : 'Not Set' ?>
+                                        </span> →
+                                        <span class="text-success">
+                                            <?= $audit['teamviewer_id'] ? htmlspecialchars($audit['teamviewer_id']) : 'Not Set' ?>
+                                        </span>
+                                    </div>
+                                <?php endif; ?>
+                                
+                                <?php if ($audit['cerf_id'] != $audit['current_cerf_id']): ?>
+                                    <div class="mb-2">
+                                        <strong>CERF ID:</strong><br>
+                                        <span class="text-danger">
+                                            <?= $audit['current_cerf_id'] ? htmlspecialchars($audit['current_cerf_id']) : 'Not Set' ?>
+                                        </span> →
+                                        <span class="text-success">
+                                            <?= $audit['cerf_id'] ? htmlspecialchars($audit['cerf_id']) : 'Not Set' ?>
+                                        </span>
                                     </div>
                                 <?php endif; ?>
                             </div>

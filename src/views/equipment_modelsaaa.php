@@ -1,23 +1,23 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>IT Equipment Management - Equipment Models</title>
+    <title>IT Equipment Management - Models</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
 <body>
     <div class="container mt-4">
         <div class="d-flex justify-content-between align-items-center mb-4">
-            <h1>Equipment Models</h1>
+            <h1>Models</h1>
             <div>
                 <a href="?action=types" class="btn btn-secondary">Manage Types</a>
-                <a href="index.php" class="btn btn-secondary">Back to Equipment List</a>
+                <a href="index.php" class="btn btn-secondary">Back</a>
             </div>
         </div>
 
         <!-- Add New Model Form -->
         <div class="card mb-4">
             <div class="card-body">
-                <h5 class="card-title"><?= $model ? 'Edit' : 'Add New' ?> Equipment Model</h5>
+                <h5 class="card-title"><?= $model ? 'Edit' : 'Add New' ?> Model</h5>
                 <form method="POST" class="row g-3">
                     <?php if ($model): ?>
                         <input type="hidden" name="id" value="<?= $model['id'] ?>">

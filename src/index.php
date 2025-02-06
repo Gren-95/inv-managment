@@ -1,4 +1,6 @@
 <?php
+session_start();
+
 require_once 'config/database.php';
 require_once 'models/Equipment.php';
 require_once 'models/EquipmentType.php';
@@ -14,8 +16,96 @@ $user = new User($pdo);
 $location = new Location($pdo);
 $sharedAccount = new SharedAccount($pdo);
 
+// Check if user is logged in
+if (!isset($_SESSION['user_id'])) {
+    // Handle PPID check for password setup
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['check_ppid'])) {
+        $userExists = $user->checkPPID($_POST['check_ppid']);
+        if ($userExists) {
+            $ppid = $_POST['check_ppid'];
+            include 'views/setup_password.php';
+            exit;
+        } else {
+            $error = 'Invalid PPID';
+            include 'views/setup_password.php';
+            exit;
+        }
+    }
+
+    // Handle password setup
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['password']) && isset($_POST['confirm_password'])) {
+        if ($_POST['password'] !== $_POST['confirm_password']) {
+            $error = 'Passwords do not match';
+            $ppid = $_POST['ppid'];
+            include 'views/setup_password.php';
+            exit;
+        }
+        
+        if (strlen($_POST['password']) < 8) {
+            $error = 'Password must be at least 8 characters long';
+            $ppid = $_POST['ppid'];
+            include 'views/setup_password.php';
+            exit;
+        }
+        
+        $userId = $user->authenticate($_POST['ppid'], '');
+        if ($userId && isset($userId['needs_setup'])) {
+            $user->setPassword($userId['id'], $_POST['password']);
+            $_SESSION['user_id'] = $userId['id'];
+            header('Location: index.php');
+            exit;
+        }
+    }
+
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['username'])) {
+        $result = $user->authenticate($_POST['username'], $_POST['password']);
+        if ($result === false) {
+            $error = 'Invalid PPID or password';
+            include 'views/login.php';
+            exit;
+        }
+
+        if (isset($result['needs_setup'])) {
+            $ppid = $_POST['username'];
+            include 'views/setup_password.php';
+            exit;
+        } else {
+            if ($user->hasPermission($result['id'], 'login')) {
+                $_SESSION['user_id'] = $result['id'];
+                header('Location: index.php');
+                exit;
+            }
+            $error = 'Access denied';
+            include 'views/login.php';
+            exit;
+        }
+    }
+    include 'views/login.php';
+    exit;
+}
+
 // Basic routing
 $action = $_GET['action'] ?? 'list';
+
+// Permission mapping
+$requiredPermissions = [
+    'list' => 'view_equipment',
+    'create' => 'manage_equipment',
+    'update' => 'manage_equipment',
+    'write_off' => 'write_off_equipment',
+    'users' => 'manage_users',
+    'locations' => 'manage_locations',
+    'models_and_types' => 'manage_models',
+    'audit' => 'perform_audit',
+    'audit_review' => 'approve_audit',
+    'shared_accounts' => 'manage_shared_accounts'
+];
+
+// Check permission for current action
+if (isset($requiredPermissions[$action]) && 
+    !$user->hasPermission($_SESSION['user_id'], $requiredPermissions[$action])) {
+    die('Access Denied');
+}
 
 switch ($action) {
     case 'create':
@@ -82,6 +172,9 @@ switch ($action) {
         break;
 
     case 'users':
+        // Get all permissions for the modal
+        $permissions = $user->getAllPermissions();
+        
         if (isset($_GET['import'])) {
             if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['csv_file'])) {
                 $results = $user->importFromCSV($_FILES['csv_file']['tmp_name']);
@@ -89,23 +182,58 @@ switch ($action) {
             include 'views/import_users.php';
             break;
         }
-        $edit_user = null;
-        if (isset($_GET['edit_id'])) {
-            $edit_user = $user->get($_GET['edit_id']);
-        }
-        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            if (isset($_POST['delete_user'])) {
-                $user->delete($_POST['id']);
-            } else if (isset($_POST['id'])) {
-                $user->update($_POST['id'], $_POST);
-            } else {
-                $user->create($_POST);
-            }
-            header('Location: index.php?action=users');
-            exit;
-        }
         $users = $user->getAll();
         include 'views/users.php';
+        break;
+
+    case 'update_user_permissions':
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            header('Content-Type: application/json');
+            $success = $user->updatePermissions(
+                $_POST['user_id'], 
+                $_POST['permissions'] ?? []
+            );
+            echo json_encode(['success' => $success]);
+            exit;
+        }
+        break;
+
+    case 'reset_user_password':
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            header('Content-Type: application/json');
+            if ($_POST['password'] === $_POST['confirm_password']) {
+                $success = $user->setPassword(
+                    $_POST['user_id'],
+                    $_POST['password']
+                );
+                echo json_encode(['success' => $success]);
+            } else {
+                echo json_encode(['error' => 'Passwords do not match']);
+            }
+            exit;
+        }
+        break;
+
+    case 'toggle_user_active':
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            header('Content-Type: application/json');
+            $data = json_decode(file_get_contents('php://input'), true);
+            if (!isset($data['user_id']) || !isset($data['active'])) {
+                echo json_encode(['error' => 'Missing required fields']);
+                exit;
+            }
+            $success = $user->toggleActive($data['user_id'], $data['active']);
+            echo json_encode(['success' => $success]);
+            exit;
+        }
+        break;
+
+    case 'get_user_permissions':
+        if (isset($_GET['user_id'])) {
+            header('Content-Type: application/json');
+            echo json_encode($user->getUserPermissions($_GET['user_id']));
+            exit;
+        }
         break;
 
     case 'get_models':
@@ -288,7 +416,7 @@ switch ($action) {
     case 'print_account_label':
         if (isset($_GET['id'])) {
             $account = $sharedAccount->get($_GET['id']);
-            include 'views/account_label.php';
+            include 'views/shared_account_label.php';
         } else {
             header('Location: index.php?action=shared_accounts');
             exit;
@@ -324,6 +452,54 @@ switch ($action) {
     case 'about':
         include 'views/about.php';
         break;
+
+    case 'delete_location':
+        // ... existing delete code ...
+        break;
+        
+    case 'edit_location':
+        $type = $_POST['type'];
+        $id = $_POST['id'];
+        $name = $_POST['name'];
+        
+        try {
+            switch ($type) {
+                case 'country':
+                    $sql = "UPDATE countries SET name = ? WHERE id = ?";
+                    $params = [$name, $id];
+                    break;
+                    
+                case 'branch':
+                    $sql = "UPDATE branches SET name = ?, country_id = ? WHERE id = ?";
+                    $params = [$name, $_POST['parent_id'], $id];
+                    break;
+                    
+                case 'department':
+                    $sql = "UPDATE departments SET name = ?, branch_id = ? WHERE id = ?";
+                    $params = [$name, $_POST['parent_id'], $id];
+                    break;
+                    
+                case 'area':
+                    $sql = "UPDATE areas SET name = ?, department_id = ? WHERE id = ?";
+                    $params = [$name, $_POST['parent_id'], $id];
+                    break;
+                    
+                default:
+                    throw new Exception("Invalid location type");
+            }
+            
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute($params);
+            
+            echo json_encode(['success' => true]);
+        } catch (Exception $e) {
+            http_response_code(500);
+            echo json_encode([
+                'success' => false,
+                'error' => $e->getMessage()
+            ]);
+        }
+        exit;
 
     default:
         $filters = [

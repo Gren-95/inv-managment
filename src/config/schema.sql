@@ -4,18 +4,20 @@ USE it_equipment;
 
 SET FOREIGN_KEY_CHECKS = 0;
 
+DROP TABLE IF EXISTS equipment_audits;
 DROP TABLE IF EXISTS equipment_status_history;
 DROP TABLE IF EXISTS write_offs;
 DROP TABLE IF EXISTS equipment;
 DROP TABLE IF EXISTS equipment_models;
+DROP TABLE IF EXISTS equipment_types;
+DROP TABLE IF EXISTS shared_accounts;
+DROP TABLE IF EXISTS user_permissions;
+DROP TABLE IF EXISTS permissions;
 DROP TABLE IF EXISTS users;
 DROP TABLE IF EXISTS areas;
 DROP TABLE IF EXISTS departments;
 DROP TABLE IF EXISTS branches;
 DROP TABLE IF EXISTS countries;
-DROP TABLE IF EXISTS equipment_types;
-DROP TABLE IF EXISTS shared_accounts;
-DROP TABLE IF EXISTS equipment_audits;
 
 SET FOREIGN_KEY_CHECKS = 1;
 
@@ -64,7 +66,9 @@ CREATE TABLE users (
     name VARCHAR(100) NOT NULL,
     email VARCHAR(100) NOT NULL UNIQUE,
     ppid VARCHAR(50) UNIQUE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    password VARCHAR(255) NULL,
+    active BOOLEAN NOT NULL DEFAULT TRUE
 );
 
 CREATE TABLE equipment_models (
@@ -78,13 +82,15 @@ CREATE TABLE equipment_models (
 CREATE TABLE equipment (
     id INT AUTO_INCREMENT PRIMARY KEY,
     model_id INT NOT NULL,
-    serial_number VARCHAR(100) UNIQUE,
+    serial_number VARCHAR(100) NOT NULL UNIQUE,
     buy_year INT NOT NULL,
     warranty_end DATE NOT NULL,
     is_company_owned BOOLEAN DEFAULT TRUE,
     status ENUM('available', 'assigned', 'maintenance', 'written_off', 'pending_write_off') DEFAULT 'available',
     assigned_to_id INT,
     area_id INT,
+    teamviewer_id BIGINT,
+    cerf_id VARCHAR(20) NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (model_id) REFERENCES equipment_models(id),
@@ -105,15 +111,29 @@ CREATE TABLE write_offs (
 );
 
 CREATE TABLE equipment_status_history (
-    id INT AUTO_INCREMENT PRIMARY KEY,
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    old_status ENUM('available', 'assigned', 'maintenance', 'written_off') NULL,
+    new_status ENUM('available', 'assigned', 'maintenance', 'written_off') NOT NULL,
     equipment_id INT NOT NULL,
-    old_status ENUM('available', 'assigned', 'maintenance', 'written_off', 'pending_write_off'),
-    new_status ENUM('available', 'assigned', 'maintenance', 'written_off', 'pending_write_off') NOT NULL,
     changed_by_user_id INT,
     comment TEXT,
+    old_user_id INT,
+    new_user_id INT,
+    old_location_id INT,
+    new_location_id INT,
+    old_assigned_to_id INT,
+    new_assigned_to_id INT,
+    old_teamviewer_id BIGINT NULL,
+    new_teamviewer_id BIGINT NULL,
+    old_cerf_id VARCHAR(20) NULL,
+    new_cerf_id VARCHAR(20) NULL,
     changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (equipment_id) REFERENCES equipment(id),
-    FOREIGN KEY (changed_by_user_id) REFERENCES users(id)
+    FOREIGN KEY (changed_by_user_id) REFERENCES users(id),
+    FOREIGN KEY (old_location_id) REFERENCES areas(id),
+    FOREIGN KEY (new_location_id) REFERENCES areas(id),
+    FOREIGN KEY (old_assigned_to_id) REFERENCES users(id),
+    FOREIGN KEY (new_assigned_to_id) REFERENCES users(id)
 );
 
 CREATE TABLE shared_accounts (
@@ -124,6 +144,14 @@ CREATE TABLE shared_accounts (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
+
+-- Sample data for shared_accounts
+INSERT INTO shared_accounts (username, email, passcode) VALUES
+('user1', 'user1@example.com', 'passcode1'),
+('user2', 'user2@example.com', 'passcode2'),
+('user3', 'user3@example.com', 'passcode3'),
+('user4', 'user4@example.com', 'passcode4'),
+('user5', 'user5@example.com', 'passcode5');
 
 CREATE TABLE equipment_audits (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -141,6 +169,8 @@ CREATE TABLE equipment_audits (
     status ENUM('pending', 'approved', 'rejected') DEFAULT 'pending',
     approved_by_user_id INT,
     approval_date TIMESTAMP NULL,
+    teamviewer_id BIGINT,
+    cerf_id BIGINT,
     FOREIGN KEY (equipment_id) REFERENCES equipment(id),
     FOREIGN KEY (current_location_id) REFERENCES areas(id),
     FOREIGN KEY (new_location_id) REFERENCES areas(id),
@@ -149,6 +179,53 @@ CREATE TABLE equipment_audits (
     FOREIGN KEY (audited_by_user_id) REFERENCES users(id),
     FOREIGN KEY (approved_by_user_id) REFERENCES users(id)
 );
+
+-- Create permissions table
+CREATE TABLE permissions (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    name VARCHAR(50) NOT NULL UNIQUE,
+    description VARCHAR(255)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Insert basic permissions
+INSERT INTO permissions (name, description) VALUES
+('login', 'Can login to the system'),
+('view_equipment', 'Can view equipment list'),
+('manage_equipment', 'Can add/edit equipment'),
+('write_off_equipment', 'Can write off equipment'),
+('manage_users', 'Can manage users'),
+('manage_locations', 'Can manage locations'),
+('manage_models', 'Can manage models and types'),
+('view_audit', 'Can view audit records'),
+('perform_audit', 'Can perform equipment audits'),
+('approve_audit', 'Can approve/reject audits'),
+('manage_shared_accounts', 'Can manage shared accounts');
+
+-- Create user_permissions junction table
+CREATE TABLE user_permissions (
+    user_id INT NOT NULL,
+    permission_id INT NOT NULL,
+    PRIMARY KEY (user_id, permission_id),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (permission_id) REFERENCES permissions(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Grant all permissions to existing users for backward compatibility
+INSERT INTO user_permissions (user_id, permission_id)
+SELECT u.id, p.id 
+FROM users u 
+CROSS JOIN permissions p;
+
+-- Create admin user with password 'admin'
+INSERT INTO users (name, email, password, ppid, active) VALUES 
+('Admin', 'admin@company.com', '$2y$10$Jw3xN0ZOqRCJwqX9A2jkpuHhR0ChJa1B5eUjr.6ZzKGqwZyEJEHNu', 'admin', TRUE);
+
+-- Grant all permissions to admin user
+INSERT INTO user_permissions (user_id, permission_id)
+SELECT 
+    (SELECT id FROM users WHERE ppid = 'admin'),
+    id
+FROM permissions;
 
 -- Sample Equipment Types
 INSERT INTO equipment_types (name, lifespan_years) VALUES 
@@ -215,24 +292,33 @@ INSERT INTO equipment_models (type_id, name, release_year) VALUES
 (5, 'Samsung Galaxy S23', 2023);
 
 -- Sample Equipment
-INSERT INTO equipment (model_id, serial_number, buy_year, warranty_end, is_company_owned, status, assigned_to_id, area_id) VALUES 
-(1, 'MBP2023001', 2023, '2026-01-01', 1, 'assigned', 1, 1),
-(1, 'MBP2023002', 2023, '2026-01-01', 1, 'assigned', 2, 1),
-(2, 'XPS2023001', 2023, '2026-01-01', 1, 'available', NULL, 2),
-(3, 'OPT2022001', 2022, '2025-01-01', 1, 'maintenance', NULL, 3),
-(4, 'U2720Q2021001', 2021, '2024-01-01', 1, 'assigned', 3, 4),
-(5, 'HP404DN2022001', 2022, '2025-01-01', 1, 'available', NULL, 5),
-(6, 'IP14P2022001', 2022, '2024-01-01', 1, 'assigned', 1, 1),
-(7, 'SGS23001', 2023, '2025-01-01', 1, 'assigned', 2, 2);
+INSERT INTO equipment (model_id, serial_number, buy_year, warranty_end, is_company_owned, status, assigned_to_id, area_id, teamviewer_id, cerf_id) VALUES 
+(1, 'MBP2023001', 2023, '2026-01-01', 1, 'assigned', 1, 1, 123456789, 'CERF001'),
+(1, 'MBP2023002', 2023, '2026-01-01', 1, 'assigned', 2, 1, 987654321, 'CERF002'),
+(2, 'XPS2023001', 2023, '2026-01-01', 1, 'available', NULL, 2, NULL, NULL),
+(3, 'OPT2022001', 2022, '2025-01-01', 1, 'maintenance', NULL, 3, 456789123, 'CERF003'),
+(4, 'U2720Q2021001', 2021, '2024-01-01', 1, 'assigned', 3, 4, NULL, NULL),
+(5, 'HP404DN2022001', 2022, '2025-01-01', 1, 'available', NULL, 5, NULL, 'CERF004'),
+(6, 'IP14P2022001', 2022, '2024-01-01', 1, 'assigned', 1, 1, 789123456, 'CERF005'),
+(7, 'SGS23001', 2023, '2025-01-01', 1, 'assigned', 2, 2, 321654987, 'CERF006');
 
 -- Sample Write-offs
 INSERT INTO write_offs (equipment_id, type, comment) VALUES 
 (4, 'broken', 'Hardware failure - motherboard replacement needed');
 
 -- Sample Status History
-INSERT INTO equipment_status_history (equipment_id, old_status, new_status, changed_by_user_id, comment) VALUES 
-(1, 'available', 'assigned', 1, 'Assigned to John Doe'),
-(2, 'available', 'assigned', 1, 'Assigned to Jane Smith'),
-(4, 'available', 'maintenance', 2, 'Sent for repair'),
-(6, 'available', 'assigned', 3, 'Assigned to John Doe'),
-(7, 'available', 'assigned', 3, 'Assigned to Jane Smith'); 
+INSERT INTO equipment_status_history (
+    equipment_id, old_status, new_status, 
+    old_location_id, new_location_id,
+    old_user_id, new_user_id,
+    old_teamviewer_id, new_teamviewer_id,
+    old_cerf_id, new_cerf_id,
+    changed_by_user_id, comment
+) VALUES 
+(1, 'available', 'assigned', NULL, 1, NULL, 1, NULL, 123456789, NULL, 'CERF001', 1, 'Initial assignment'),
+(2, 'available', 'assigned', 2, 1, NULL, 2, 987654320, 987654321, NULL, 'CERF002', 1, 'Reassigned with new TeamViewer'),
+(3, 'available', 'maintenance', 3, 3, 2, NULL, 456789123, NULL, 'CERF003', NULL, 2, 'Sent for repair'),
+(4, 'assigned', 'maintenance', 4, 3, 3, NULL, NULL, NULL, NULL, NULL, 2, 'Hardware failure'),
+(5, 'available', 'assigned', 5, 5, NULL, 1, NULL, NULL, 'CERF004', 'CERF004', 3, 'Assigned to printer room'),
+(6, 'available', 'assigned', NULL, 1, NULL, 1, 789123455, 789123456, NULL, 'CERF005', 3, 'New device setup'),
+(7, 'assigned', 'maintenance', 2, 2, 2, NULL, 321654987, 321654987, 'CERF006', 'CERF006', 3, 'Temporary maintenance'); 

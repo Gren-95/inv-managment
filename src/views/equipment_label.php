@@ -30,7 +30,7 @@ $labelHeight = 14;
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Equipment Label - <?= htmlspecialchars($item['serial_number']) ?></title>
+    <title>Label - <?= htmlspecialchars($item['serial_number']) ?></title>
     <style>
         @media print {
             .no-print {
@@ -52,6 +52,18 @@ $labelHeight = 14;
 
         .back-button:hover {
             background-color: #0b5ed7;
+        }
+
+        .print-button {
+            position: fixed;
+            top: 20px;
+            right: 100px; /* Adjusted to place next to back button */
+            padding: 10px 20px;
+            background-color: #28a745; /* Green color */
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            font-family: Arial, sans-serif;
         }
 
         @page {
@@ -95,7 +107,8 @@ $labelHeight = 14;
     </style>
 </head>
 <body>
-    <a href="index.php" class="back-button no-print">← Back to List</a>
+    <a href="javascript:window.print()" class="print-button no-print">Print</a>
+    <a href="index.php" class="back-button no-print">Back</a>
     <div class="label-container">
         <img src="temp/<?= $qrFileName ?>" class="qr-code" alt="QR Code">
         <div class="serial-number"><?= htmlspecialchars($item['serial_number']) ?></div>

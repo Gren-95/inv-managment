@@ -1,22 +1,22 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Manage Equipment Types & Models</title>
+    <title>Types & Models - ITEM</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
 <body>
     <div class="container mt-4">
         <div class="d-flex justify-content-between align-items-center mb-4">
-            <h1>Manage Equipment Types & Models</h1>
-            <a href="index.php" class="btn btn-secondary">Back to List</a>
+            <h1>Types & Models</h1>
+            <a href="index.php" class="btn btn-secondary">Back</a>
         </div>
 
         <div class="row">
-            <!-- Equipment Types Section -->
+            <!-- Types Section -->
             <div class="col-md-4">
                 <div class="card">
                     <div class="card-header d-flex justify-content-between align-items-center">
-                        <h5 class="mb-0">Equipment Types</h5>
+                        <h5 class="mb-0">Types</h5>
                         <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addTypeModal">
                             Add Type
                         </button>
@@ -44,11 +44,11 @@
                 </div>
             </div>
 
-            <!-- Equipment Models Section -->
+            <!-- Models Section -->
             <div class="col-md-8">
                 <div class="card">
                     <div class="card-header d-flex justify-content-between align-items-center">
-                        <h5 class="mb-0">Equipment Models</h5>
+                        <h5 class="mb-0">Models</h5>
                         <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addModelModal">
                             Add Model
                         </button>
@@ -96,7 +96,7 @@
             <div class="modal-content">
                 <form method="POST">
                     <div class="modal-header">
-                        <h5 class="modal-title">Add Equipment Type</h5>
+                        <h5 class="modal-title">Add Type</h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                     </div>
                     <div class="modal-body">
@@ -125,7 +125,7 @@
                 <form method="POST">
                     <input type="hidden" name="id" id="editTypeId">
                     <div class="modal-header">
-                        <h5 class="modal-title">Edit Equipment Type</h5>
+                        <h5 class="modal-title">Edit Type</h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                     </div>
                     <div class="modal-body">
@@ -154,12 +154,12 @@
             <div class="modal-content">
                 <form method="POST">
                     <div class="modal-header">
-                        <h5 class="modal-title">Add Equipment Model</h5>
+                        <h5 class="modal-title">Add Model</h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                     </div>
                     <div class="modal-body">
                         <div class="mb-3">
-                            <label class="form-label">Equipment Type</label>
+                            <label class="form-label">Type</label>
                             <select name="type_id" class="form-select" required>
                                 <option value="">Select Type</option>
                                 <?php foreach ($types as $type): ?>
@@ -194,12 +194,12 @@
                 <form method="POST">
                     <input type="hidden" name="id" id="editModelId">
                     <div class="modal-header">
-                        <h5 class="modal-title">Edit Equipment Model</h5>
+                        <h5 class="modal-title">Edit Model</h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                     </div>
                     <div class="modal-body">
                         <div class="mb-3">
-                            <label class="form-label">Equipment Type</label>
+                            <label class="form-label">Type</label>
                             <select name="type_id" id="editModelType" class="form-select" required>
                                 <?php foreach ($types as $type): ?>
                                     <option value="<?= $type['id'] ?>">

@@ -1,16 +1,16 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>IT Equipment Management - Write Off Equipment</title>
+    <title>Write Off - ITEM</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
 <body>
     <div class="container mt-4">
-        <h1>Write Off Equipment</h1>
+        <h1>Write Off</h1>
         
         <div class="card mb-4">
             <div class="card-body">
-                <h5 class="card-title">Equipment Details</h5>
+                <h5 class="card-title">Details</h5>
                 <p>
                     <strong>Type-Model:</strong> <?= htmlspecialchars($item['type_name']) ?> - <?= htmlspecialchars($item['model_name']) ?><br>
                     <strong>Current Status:</strong> <?= htmlspecialchars($item['status']) ?>

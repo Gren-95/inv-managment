@@ -1,7 +1,9 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>IT Equipment Management - <?= isset($_GET['id']) ? 'Edit' : 'Add' ?> Equipment</title>
+    <title><?= isset($_GET['id']) ? 'Edit' : 'Add' ?> Equipment - ITEM</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="icon" type="image/png" href="assets/img/favicon.png">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
 <body>
@@ -17,7 +19,7 @@
             <?php endif; ?>
 
             <div class="mb-3">
-                <label for="type_id" class="form-label">Equipment Type</label>
+                <label for="type_id" class="form-label">Type</label>
                 <select name="type_id" id="type_id" class="form-control" required>
                     <option value="">Select Type</option>
                     <?php 
@@ -60,6 +62,21 @@
                        value="<?= $item ? htmlspecialchars($item['serial_number']) : '' ?>" required>
             </div>
 
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <label class="form-label">TeamViewer ID</label>
+                    <input type="number" class="form-control" name="teamviewer_id" 
+                           value="<?= $item ? htmlspecialchars($item['teamviewer_id']) : '' ?>"
+                           min="0" step="1">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">CERF ID</label>
+                    <input type="number" class="form-control" name="cerf_id" 
+                           value="<?= $item ? htmlspecialchars($item['cerf_id']) : '' ?>"
+                           min="0" step="1">
+                </div>
+            </div>
+
             <div class="mb-3">
                 <div class="form-check">
                     <input type="checkbox" class="form-check-input" id="is_company_owned" name="is_company_owned" value="1" 
@@ -99,120 +116,193 @@
             </div>
 
             <!-- Location Selection -->
-            <div class="row">
-                <div class="col-md-3 mb-3">
-                    <label for="country_id" class="form-label">Country</label>
-                    <select name="country_id" id="country_id" class="form-control" required>
-                        <option value="">Select Country</option>
-                        <?php foreach ($countries as $country): ?>
-                            <option value="<?= $country['id'] ?>"><?= htmlspecialchars($country['name']) ?></option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
-
-                <div class="col-md-3 mb-3">
-                    <label for="branch_id" class="form-label">Branch</label>
-                    <select name="branch_id" id="branch_id" class="form-control" required disabled>
-                        <option value="">Select Branch</option>
-                    </select>
-                </div>
-
-                <div class="col-md-3 mb-3">
-                    <label for="department_id" class="form-label">Department</label>
-                    <select name="department_id" id="department_id" class="form-control" required disabled>
-                        <option value="">Select Department</option>
-                    </select>
-                </div>
-
-                <div class="col-md-3 mb-3">
-                    <label for="area_id" class="form-label">Area</label>
-                    <select name="area_id" id="area_id" class="form-control" required disabled>
-                        <option value="">Select Area</option>
-                    </select>
+            <div class="mb-3">
+                <label class="form-label">Location</label>
+                <div class="row g-2">
+                    <div class="col">
+                        <select class="form-control" id="country_id" name="country_id" required>
+                            <option value="">Select Country</option>
+                            <?php foreach ($countries as $country): ?>
+                                <option value="<?= $country['id'] ?>"
+                                   <?= ($item && $item['country_id'] == $country['id']) ? 'selected' : '' ?>>
+                                    <?= htmlspecialchars($country['name']) ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div class="col">
+                        <select class="form-control" id="branch_id" name="branch_id" required disabled>
+                            <option value="">Select Branch</option>
+                            <?php if ($item && isset($item['branch_id']) && isset($item['branch_name'])): ?>
+                                <option value="<?= $item['branch_id'] ?>" selected>
+                                    <?= htmlspecialchars($item['branch_name']) ?>
+                                </option>
+                            <?php endif; ?>
+                        </select>
+                    </div>
+                    <div class="col">
+                        <select class="form-control" id="department_id" name="department_id" required disabled>
+                            <option value="">Select Department</option>
+                            <?php if ($item && isset($item['department_id']) && isset($item['department_name'])): ?>
+                                <option value="<?= $item['department_id'] ?>" selected>
+                                    <?= htmlspecialchars($item['department_name']) ?>
+                                </option>
+                            <?php endif; ?>
+                        </select>
+                    </div>
+                    <div class="col">
+                        <select class="form-control" id="area_id" name="area_id" required disabled>
+                            <option value="">Select Area</option>
+                            <?php if ($item && isset($item['area_id']) && isset($item['area_name'])): ?>
+                                <option value="<?= $item['area_id'] ?>" selected>
+                                    <?= htmlspecialchars($item['area_name']) ?>
+                                </option>
+                            <?php endif; ?>
+                        </select>
+                    </div>
                 </div>
             </div>
 
             <div class="mb-3">
-                <button type="submit" class="btn btn-primary">Save Equipment</button>
+                <button type="submit" class="btn btn-primary">Save</button>
                 <a href="index.php" class="btn btn-secondary">Cancel</a>
             </div>
         </form>
     </div>
 
     <script>
-    // Location cascading dropdowns
-    document.getElementById('country_id').addEventListener('change', function() {
-        const countryId = this.value;
-        const branchSelect = document.getElementById('branch_id');
+    // Function to initialize location dropdowns
+    async function initializeLocationDropdowns() {
+        <?php if ($item): ?>
+            // Trigger country change to load branches
+            await loadBranches(<?= json_encode($item['country_id']) ?>);
+            
+            // Trigger branch change to load departments
+            await loadDepartments(<?= json_encode($item['branch_id']) ?>);
+            
+            // Trigger department change to load areas
+            await loadAreas(<?= json_encode($item['department_id']) ?>);
+        <?php endif; ?>
+    }
+
+    // Function to load branches
+    async function loadBranches(countryId) {
+        if (!countryId) return;
+        
+        try {
+            const response = await fetch(`?action=get_branches&country_id=${countryId}`);
+            const branches = await response.json();
+            
+            const branchSelect = document.getElementById('branch_id');
+            branchSelect.innerHTML = '<option value="">Select Branch</option>';
+            
+            branches.forEach(branch => {
+                const option = document.createElement('option');
+                option.value = branch.id;
+                option.textContent = branch.name;
+                if (<?= $item ? $item['branch_id'] : 'null' ?> == branch.id) {
+                    option.selected = true;
+                }
+                branchSelect.appendChild(option);
+            });
+            
+            branchSelect.disabled = false;
+            if (branchSelect.value) {
+                await loadDepartments(branchSelect.value);
+            }
+        } catch (error) {
+            console.error('Failed to fetch branches:', error);
+        }
+    }
+
+    // Function to load departments
+    async function loadDepartments(branchId) {
+        if (!branchId) return;
+        
+        try {
+            const response = await fetch(`?action=get_departments&branch_id=${branchId}`);
+            const departments = await response.json();
+            
+            const departmentSelect = document.getElementById('department_id');
+            departmentSelect.innerHTML = '<option value="">Select Department</option>';
+            
+            departments.forEach(dept => {
+                const option = document.createElement('option');
+                option.value = dept.id;
+                option.textContent = dept.name;
+                if (<?= $item ? $item['department_id'] : 'null' ?> == dept.id) {
+                    option.selected = true;
+                }
+                departmentSelect.appendChild(option);
+            });
+            
+            departmentSelect.disabled = false;
+            if (departmentSelect.value) {
+                await loadAreas(departmentSelect.value);
+            }
+        } catch (error) {
+            console.error('Failed to fetch departments:', error);
+        }
+    }
+
+    // Function to load areas
+    async function loadAreas(departmentId) {
+        if (!departmentId) return;
+        
+        try {
+            const response = await fetch(`?action=get_areas&department_id=${departmentId}`);
+            const areas = await response.json();
+            
+            const areaSelect = document.getElementById('area_id');
+            areaSelect.innerHTML = '<option value="">Select Area</option>';
+            
+            areas.forEach(area => {
+                const option = document.createElement('option');
+                option.value = area.id;
+                option.textContent = area.name;
+                if (<?= $item ? $item['area_id'] : 'null' ?> == area.id) {
+                    option.selected = true;
+                }
+                areaSelect.appendChild(option);
+            });
+            
+            areaSelect.disabled = false;
+        } catch (error) {
+            console.error('Failed to fetch areas:', error);
+        }
+    }
+
+    // Location cascade selects
+    document.getElementById('country_id').addEventListener('change', async function() {
         const departmentSelect = document.getElementById('department_id');
         const areaSelect = document.getElementById('area_id');
         
-        // Reset and disable dependent dropdowns
-        branchSelect.innerHTML = '<option value="">Select Branch</option>';
         departmentSelect.innerHTML = '<option value="">Select Department</option>';
         areaSelect.innerHTML = '<option value="">Select Area</option>';
         
-        branchSelect.disabled = !countryId;
+        await loadBranches(this.value);
         departmentSelect.disabled = true;
         areaSelect.disabled = true;
-        
-        if (countryId) {
-            fetch(`?action=get_branches&country_id=${countryId}`)
-                .then(response => response.json())
-                .then(branches => {
-                    branches.forEach(branch => {
-                        const option = document.createElement('option');
-                        option.value = branch.id;
-                        option.textContent = branch.name;
-                        branchSelect.appendChild(option);
-                    });
-                });
-        }
     });
 
-    document.getElementById('branch_id').addEventListener('change', function() {
-        const branchId = this.value;
-        const departmentSelect = document.getElementById('department_id');
+    document.getElementById('branch_id').addEventListener('change', async function() {
         const areaSelect = document.getElementById('area_id');
         
-        departmentSelect.innerHTML = '<option value="">Select Department</option>';
         areaSelect.innerHTML = '<option value="">Select Area</option>';
         
-        departmentSelect.disabled = !branchId;
+        await loadDepartments(this.value);
         areaSelect.disabled = true;
-        
-        if (branchId) {
-            fetch(`?action=get_departments&branch_id=${branchId}`)
-                .then(response => response.json())
-                .then(departments => {
-                    departments.forEach(dept => {
-                        const option = document.createElement('option');
-                        option.value = dept.id;
-                        option.textContent = dept.name;
-                        departmentSelect.appendChild(option);
-                    });
-                });
-        }
     });
 
-    document.getElementById('department_id').addEventListener('change', function() {
-        const departmentId = this.value;
-        const areaSelect = document.getElementById('area_id');
-        
-        areaSelect.innerHTML = '<option value="">Select Area</option>';
-        areaSelect.disabled = !departmentId;
-        
-        if (departmentId) {
-            fetch(`?action=get_areas&department_id=${departmentId}`)
-                .then(response => response.json())
-                .then(areas => {
-                    areas.forEach(area => {
-                        const option = document.createElement('option');
-                        option.value = area.id;
-                        option.textContent = area.name;
-                        areaSelect.appendChild(option);
-                    });
-                });
+    document.getElementById('department_id').addEventListener('change', async function() {
+        await loadAreas(this.value);
+    });
+
+    // Initialize dropdowns when editing
+    document.addEventListener('DOMContentLoaded', async function() {
+        const countrySelect = document.getElementById('country_id');
+        if (countrySelect.value) {
+            await loadBranches(countrySelect.value);
         }
     });
 

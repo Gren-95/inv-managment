@@ -1,15 +1,15 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Shared Account Management</title>
+    <title>Shared Accounts - ITEM</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
 <body>
     <div class="container mt-4">
         <div class="d-flex justify-content-between align-items-center mb-4">
-            <h1>Shared Account Management</h1>
+            <h1>Shared Accounts</h1>
             <div>
-                <a href="index.php" class="btn btn-secondary">Back to List</a>
+                <a href="index.php" class="btn btn-secondary">Back</a>
                 <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addAccountModal">
                     Add Account
                 </button>
@@ -23,7 +23,7 @@
                         <th>Username</th>
                         <th>Email</th>
                         <th>Passcode</th>
-                        <th>Actions</th>
+                        <th class="text-end">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -32,13 +32,13 @@
                         <td><?= htmlspecialchars($account['username']) ?></td>
                         <td><?= htmlspecialchars($account['email']) ?></td>
                         <td><?= htmlspecialchars($account['passcode']) ?></td>
-                        <td>
-                            <button class="btn btn-sm btn-warning" 
+                        <td class="text-end">
+                            <button class="btn btn-sm btn-warning me-2" 
                                     onclick="editAccount(<?= htmlspecialchars(json_encode($account)) ?>)">
                                 Edit
                             </button>
                             <a href="?action=print_account_label&id=<?= $account['id'] ?>" 
-                               class="btn btn-sm btn-info" target="_blank">
+                               class="btn btn-sm btn-info me-2" target="_blank">
                                 Print Label
                             </a>
                             <form method="POST" class="d-inline" onsubmit="return confirm('Are you sure?')">

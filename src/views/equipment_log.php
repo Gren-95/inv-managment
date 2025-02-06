@@ -1,8 +1,9 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Equipment Status Log</title>
+    <title>Log - ITEM</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="icon" type="image/png" href="assets/img/favicon.png">
     <style>
         .sortable {
             cursor: pointer;
@@ -30,21 +31,40 @@
             color: #666;
             font-size: 0.9em;
         }
+        .old-value {
+            color: #dc3545;
+            text-decoration: line-through;
+            font-size: 0.9em;
+            border-top: 1px solid #ddd;
+            margin-top: 4px;
+            padding-top: 4px;
+        }
+        .new-value {
+            color: #28a745;
+            font-weight: 500;
+        }
+        td {
+            vertical-align: top !important;
+        }
     </style>
 </head>
 <body>
     <div class="container mt-4">
         <div class="d-flex justify-content-between align-items-center mb-4">
-            <h1>Equipment Status Log</h1>
-            <a href="index.php" class="btn btn-secondary">Back to List</a>
+            <h1>Log</h1>
+            <a href="index.php" class="btn btn-secondary">Back</a>
         </div>
 
         <table class="table table-striped">
             <thead>
                 <tr>
                     <th class="sortable" data-sort="date">Date & Time</th>
-                    <th class="sortable" data-sort="equipment">Equipment</th>
-                    <th class="sortable" data-sort="change">Status Change</th>
+                    <th class="sortable" data-sort="equipment">Model & Type</th>
+                    <th>Status</th>
+                    <th>Location</th>
+                    <th>Assigned To</th>
+                    <th>TeamViewer ID</th>
+                    <th>CERF ID</th>
                     <th class="sortable" data-sort="user">Changed By</th>
                     <th>Comment</th>
                 </tr>
@@ -60,10 +80,76 @@
                         <?= htmlspecialchars($entry['model_name']) ?>
                         <br>
                         <small class="text-muted">SN: <?= htmlspecialchars($entry['serial_number']) ?></small>
+                        <?php if (isset($entry['old_teamviewer_id']) && isset($entry['new_teamviewer_id']) &&
+                                 ($entry['old_teamviewer_id'] !== null || $entry['new_teamviewer_id'] !== null)): ?>
+                            <br>
+                            <small class="text-muted">TeamViewer ID: 
+                                <?= $entry['old_teamviewer_id'] !== null ? 
+                                    htmlspecialchars($entry['old_teamviewer_id']) : 'Not Set' ?> → 
+                                <?= $entry['new_teamviewer_id'] !== null ? 
+                                    htmlspecialchars($entry['new_teamviewer_id']) : 'Not Set' ?>
+                            </small>
+                        <?php endif; ?>
+                        <?php if (isset($entry['old_cerf_id']) && isset($entry['new_cerf_id']) &&
+                                 ($entry['old_cerf_id'] !== null || $entry['new_cerf_id'] !== null)): ?>
+                            <br>
+                            <small class="text-muted">CERF ID: 
+                                <?= $entry['old_cerf_id'] !== null ? 
+                                    htmlspecialchars($entry['old_cerf_id']) : 'Not Set' ?> → 
+                                <?= $entry['new_cerf_id'] !== null ? 
+                                    htmlspecialchars($entry['new_cerf_id']) : 'Not Set' ?>
+                            </small>
+                        <?php endif; ?>
                     </td>
-                    <td class="status-change">
-                        <?= htmlspecialchars($entry['old_status'] ?? 'none') ?> → 
-                        <?= htmlspecialchars($entry['new_status']) ?>
+                    <td class="status-cell">
+                        <div class="new-value">
+                            <?= htmlspecialchars($entry['new_status']) ?>
+                        </div>
+                        <?php if ($entry['old_status'] !== $entry['new_status']): ?>
+                        <div class="old-value">
+                            <?= htmlspecialchars($entry['old_status'] ?? 'none') ?>
+                        </div>
+                        <?php endif; ?>
+                    </td>
+                    <td class="location-cell">
+                        <div class="new-value">
+                            <?= $entry['new_location_path'] ?: 'Not Set' ?>
+                        </div>
+                        <?php if ($entry['old_location_id'] !== $entry['new_location_id']): ?>
+                        <div class="old-value">
+                            <?= $entry['old_location_path'] ?: 'Not Set' ?>
+                        </div>
+                        <?php endif; ?>
+                    </td>
+                    <td class="user-cell">
+                        <div class="new-value">
+                            <?= htmlspecialchars($entry['new_user_name'] ?? 'Not Assigned') ?>
+                        </div>
+                        <?php if ($entry['old_user_id'] !== $entry['new_user_id']): ?>
+                        <div class="old-value">
+                            <?= htmlspecialchars($entry['old_user_name'] ?? 'Not Assigned') ?>
+                        </div>
+                        <?php endif; ?>
+                    </td>
+                    <td class="teamviewer-cell">
+                        <div class="new-value">
+                            <?= $entry['new_teamviewer_id'] ?: 'Not Set' ?>
+                        </div>
+                        <?php if ($entry['old_teamviewer_id'] != $entry['new_teamviewer_id']): ?>
+                        <div class="old-value">
+                            <?= $entry['old_teamviewer_id'] ?: 'Not Set' ?>
+                        </div>
+                        <?php endif; ?>
+                    </td>
+                    <td class="cerf-cell">
+                        <div class="new-value">
+                            <?= $entry['new_cerf_id'] ?: 'Not Set' ?>
+                        </div>
+                        <?php if ($entry['old_cerf_id'] != $entry['new_cerf_id']): ?>
+                        <div class="old-value">
+                            <?= $entry['old_cerf_id'] ?: 'Not Set' ?>
+                        </div>
+                        <?php endif; ?>
                     </td>
                     <td><?= htmlspecialchars($entry['changed_by_name'] ?? 'System') ?></td>
                     <td><?= htmlspecialchars($entry['comment'] ?? '-') ?></td>

@@ -1,4 +1,4 @@
-# IT Equipment Management System
+# ITEM - IT Equipment Management System
 
 ## Overview
 
@@ -38,3 +38,12 @@ This is a simple IT equipment management system that allows you to track IT equi
 
 3. Run `docker-compose up -d`
 4. enjoy :)
+
+## default credentials
+
+- username: admin
+- password: administrator
+
+## todo
+
+import more stuff with csv files

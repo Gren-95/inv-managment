@@ -16,8 +16,8 @@ $barcode = $generator->getBarcode($account['passcode'], $generator::TYPE_CODE_12
 file_put_contents($barcodeFile, $barcode);
 
 // Label dimensions
-$labelWidth = 85;   // narrower width
-$labelHeight = 35;  // shorter height
+$labelWidth = 62;   // narrower width
+$labelHeight = 30;  // shorter height
 ?>
 <!DOCTYPE html>
 <html>
@@ -46,6 +46,26 @@ $labelHeight = 35;  // shorter height
             background-color: #0b5ed7;
         }
 
+        .print-button {
+            position: fixed;
+            top: 20px;
+            right: 100px; /* Adjusted to place next to back button */
+            padding: 10px 20px;
+            background-color: #28a745; /* Green color */
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            font-family: Arial, sans-serif;
+        }
+
+        .print-button:before {
+            margin-right: 5px;
+        }
+
+        .print-button:hover {
+            background-color: #218838; /* Darker green on hover */
+        }
+
         @page {
             size: <?= $labelWidth ?>mm <?= $labelHeight ?>mm;
             margin: 0;
@@ -70,87 +90,48 @@ $labelHeight = 35;  // shorter height
             margin-bottom: 2mm;
             width: 100%;
         }
-        .username {
+        .username, .email, .passcode {
             margin-bottom: 1mm;
             display: flex;
-            justify-content: flex-start;
+            justify-content: space-between; /* Changed to space-between for right alignment */
             align-items: center;
         }
-        .username-label {
+        .username-label, .email-label, .passcode-label {
             font-size: 10pt;
             color: #666;
             width: 22mm;
             text-align: left;
             padding-right: 2mm;
         }
-        .username-value {
-            font-size: 11pt;
-            font-weight: bold;
-            width: auto;
-            text-align: left;
-        }
-        .email {
-            margin-bottom: 2mm;
-            display: flex;
-            justify-content: flex-start;
-            align-items: center;
-        }
-        .email-label {
-            font-size: 10pt;
-            color: #666;
-            width: 22mm;
-            text-align: left;
-            padding-right: 2mm;
-        }
-        .email-value {
+        .username-value, .email-value, .passcode-value {
             font-size: 11pt;
             width: auto;
-            text-align: left;
-        }
-        .passcode {
-            margin-bottom: 2mm;
-            display: flex;
-            justify-content: flex-start;
-            align-items: center;
-        }
-        .passcode-label {
-            font-size: 10pt;
-            color: #666;
-            width: 22mm;
-            text-align: left;
-            padding-right: 2mm;
-        }
-        .passcode-value {
-            font-size: 11pt;
-            font-weight: bold;
-            font-family: monospace;
-            width: auto;
-            text-align: left;
+            text-align: right; /* Right align the label values */
         }
         .barcode {
             height: 8mm;
             width: 60mm;
             object-fit: contain;
-            margin-left: 12mm;
+            margin: 0 auto; /* Center the barcode */
             display: block;
-            margin-top: 1mm;
         }
     </style>
 </head>
 <body>
-    <a href="?action=shared_accounts" class="back-button no-print">← Back to Accounts</a>
+    <a href="?action=shared_accounts" class="back-button no-print">Back</a>
+    <a href="javascript:window.print()" class="print-button no-print"> Print</a>
     <div class="label-container">
         <div class="account-info">
             <div class="username">
-                <div class="username-label">Username: </div>
+                <div class="username-label"><strong>Username:</strong> </div>
                 <div class="username-value"><?= htmlspecialchars($account['username']) ?></div>
             </div>
             <div class="email">
-                <div class="email-label">Email: </div>
+                <div class="email-label"><strong>Email:</strong> </div>
                 <div class="email-value"><?= htmlspecialchars($account['email']) ?></div>
             </div>
             <div class="passcode">
-                <div class="passcode-label">Passcode: </div>
+                <div class="passcode-label"><strong>Passcode:</strong> </div>
                 <div class="passcode-value"><?= htmlspecialchars($account['passcode']) ?></div>
             </div>
         </div>

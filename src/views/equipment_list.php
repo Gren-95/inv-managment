@@ -1,7 +1,9 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>IT Equipment Management</title>
+    <title>List - ITEM</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="icon" type="image/png" href="assets/img/favicon.png">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         .sortable {
@@ -47,17 +49,17 @@
 <body>
     <div class="container mt-4">
         <div class="d-flex justify-content-between align-items-center mb-4">
-            <h1>IT Equipment List</h1>
+            <h1>List</h1>
             <div class="d-flex align-items-center gap-3">
                 <select class="form-select" style="width: auto;" onchange="handlePageChange(this.value)">
-                    <option value="?action=list">Equipment List</option>
-                    <option value="?action=locations">Manage Locations</option>
-                    <option value="?action=users">Manage Users</option>
-                    <option value="?action=models_and_types">Manage Models & Types</option>
+                    <option value="?action=list">List</option>
+                    <option value="?action=locations">Locations</option>
+                    <option value="?action=users">Users</option>
+                    <option value="?action=models_and_types">Models & Types</option>
                     <option value="?action=shared_accounts">Shared Accounts</option>
-                    <option value="?action=equipment_log">Status Log</option>
-                    <option value="?action=audit">Equipment Audit</option>
-                    <option value="phpmyadmin">Database Admin</option>
+                    <option value="?action=audit">Audit</option>
+                    <option value="?action=audit_review">Audit Review</option>
+                    <option value="?action=equipment_log">Log</option>
                     <option value="?action=about">About</option>
                 </select>
             </div>
